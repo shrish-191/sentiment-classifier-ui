@@ -51,22 +51,32 @@ import gradio as gr
 from transformers import TFBertForSequenceClassification, AutoTokenizer
 import tensorflow as tf
 
+# Load model and tokenizer
 model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
 tokenizer = AutoTokenizer.from_pretrained("shrish191/sentiment-bert")
 
 def classify_sentiment(text):
     text = text.lower().strip()
     inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True)
-    predictions = model(inputs, training=False).logits  # Prevent dropout at inference
-    label = tf.argmax(predictions, axis=1).numpy()[0]
+    outputs = model(inputs, training=False)
+    logits = outputs.logits
+    label_id = tf.argmax(logits, axis=1).numpy()[0]
+    
+    # Ensure label ID is a string before looking it up
     labels = model.config.id2label
-    print(f"Text: {text} | Prediction: {label} | Logits: {predictions.numpy()}")
-    return labels[str(label)]
+    label_name = labels.get(str(label_id), "Unknown")
 
-demo = gr.Interface(fn=classify_sentiment,
-                    inputs=gr.Textbox(placeholder="Enter a tweet..."),
-                    outputs="text",
-                    title="Tweet Sentiment Classifier",
-                    description="Multilingual BERT-based Sentiment Analysis")
+    print(f"Text: {text} | Label ID: {label_id} | Label: {label_name} | Logits: {logits.numpy()}")
+    return label_name
+
+# Gradio UI
+demo = gr.Interface(
+    fn=classify_sentiment,
+    inputs=gr.Textbox(placeholder="Enter a tweet..."),
+    outputs="text",
+    title="Tweet Sentiment Classifier",
+    description="Multilingual BERT-based Sentiment Analysis"
+)
 
 demo.launch()
+
