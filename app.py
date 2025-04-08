@@ -48,28 +48,31 @@ demo = gr.Interface(fn=classify_sentiment,
 demo.launch()
 '''
 import gradio as gr
-from transformers import TFBertForSequenceClassification, AutoTokenizer
+from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
 
-# Load model and tokenizer
+# Load model and tokenizer from Hugging Face Hub
 model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
-tokenizer = AutoTokenizer.from_pretrained("shrish191/sentiment-bert")
+tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
 
 def classify_sentiment(text):
     text = text.lower().strip()
     inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True)
     outputs = model(inputs, training=False)
     logits = outputs.logits
-    label_id = tf.argmax(logits, axis=1).numpy()[0]
+    label_id = int(tf.argmax(logits, axis=1).numpy()[0])
     
-    # Ensure label ID is a string before looking it up
-    labels = model.config.id2label
-    label_name = labels.get(str(label_id), "Unknown")
+    # Handle label mapping correctly
+    raw_labels = model.config.id2label
+    if isinstance(list(raw_labels.keys())[0], str):
+        label = raw_labels.get(str(label_id), "Unknown")
+    else:
+        label = raw_labels.get(label_id, "Unknown")
+    
+    print(f"Text: {text} | Label ID: {label_id} | Label: {label} | Logits: {logits.numpy()}")
+    return label
 
-    print(f"Text: {text} | Label ID: {label_id} | Label: {label_name} | Logits: {logits.numpy()}")
-    return label_name
-
-# Gradio UI
+# Define the Gradio interface
 demo = gr.Interface(
     fn=classify_sentiment,
     inputs=gr.Textbox(placeholder="Enter a tweet..."),
@@ -78,5 +81,6 @@ demo = gr.Interface(
     description="Multilingual BERT-based Sentiment Analysis"
 )
 
+# Launch the app
 demo.launch()
 
