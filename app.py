@@ -31,9 +31,9 @@ tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
 
 # Manually define the correct mapping
 LABELS = {
-    0: "Negative",
-    1: "Neutral",
-    2: "Positive"
+    0: "Neutral",
+    1: "Positive",
+    2: "Negative"
 }
 
 def classify_sentiment(text):
