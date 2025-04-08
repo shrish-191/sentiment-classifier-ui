@@ -3,8 +3,8 @@ from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
 
 # Load model and tokenizer from your HF model repo
-model = TFBertForSequenceClassification.from_pretrained("Shrish191/sentiment-classifier")
-tokenizer = BertTokenizer.from_pretrained("Shrish191/sentiment-classifier")
+model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
+tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
 
 def classify_sentiment(text):
     inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True)
