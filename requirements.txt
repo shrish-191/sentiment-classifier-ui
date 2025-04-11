@@ -1,4 +1,6 @@
 transformers==4.37.2
 tensorflow==2.12.0
 tf-keras
-
+gradio
+snscrape
+praw
