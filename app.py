@@ -193,7 +193,7 @@ def classify_sentiment(text_input, reddit_url):
         return f"[!] Prediction error: {str(e)}"
 
 # Gradio UI
-'''demo = gr.Interface(
+demo = gr.Interface(
     fn=classify_sentiment,
     inputs=[
         gr.Textbox(
@@ -210,68 +210,8 @@ def classify_sentiment(text_input, reddit_url):
     outputs="text",
     title="Sentiment Analyzer",
     description="🔍 Paste any text (including tweet content) OR a Reddit post URL to analyze sentiment.\n\n💡 Tweet URLs are not supported directly due to platform restrictions. Please paste tweet content manually."
-)'''
-demo = gr.Blocks(theme=gr.themes.Soft(), css="footer {visibility: hidden}")
-
-with demo:
-    gr.Markdown("""
-    # 🌟 Sentiment Analysis Tool
-    *Uncover the emotional tone behind text content and Reddit posts*
-    """)
-    
-    with gr.Row():
-        with gr.Column():
-            gr.Markdown("## 📥 Input Options")
-            with gr.Tabs():
-                with gr.TabItem("📝 Text Content"):
-                    text_input = gr.Textbox(
-                        label="Paste Your Text Content",
-                        placeholder="Enter tweet, comment, or any text here...",
-                        lines=5,
-                        elem_id="text-input"
-                    )
-                with gr.TabItem("🔗 Reddit Post"):
-                    url_input = gr.Textbox(
-                        label="Reddit Post URL",
-                        placeholder="Paste Reddit post URL here (e.g., https://www.reddit.com/r/...)",
-                        lines=1,
-                        elem_id="url-input"
-                    )
-            gr.Markdown("""
-            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                ⚠️ Note: For Twitter analysis, please paste text content directly due to platform restrictions
-            </div>
-            """, elem_id="warning-box")
+)
             
-        with gr.Column():
-            gr.Markdown("## 📊 Analysis Results")
-            output_text = gr.Textbox(
-                label="Sentiment Assessment",
-                placeholder="Your analysis will appear here...",
-                interactive=False,
-                lines=5,
-                elem_id="result-box"
-            )
-            examples = gr.Examples(
-                examples=[
-                    ["Just had the most amazing dinner! The service was incredible!"],
-                    ["https://www.reddit.com/r/technology/comments/xyz123/new_ai_breakthrough"],
-                    ["Really disappointed with the latest update. Features are missing and it's so slow."]
-                ],
-                inputs=[text_input],
-                label="💡 Try These Examples"
-            )
-
-    gr.Markdown("""
-    <div style="text-align: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-        🚀 Powered by Gradio & Hugging Face | 
-        [Privacy Policy](#) | 
-        [Terms of Service](#) | 
-        [GitHub Repo](#)
-    </div>
-    """, elem_id="footer")
-
-
 demo.launch()
 
 
