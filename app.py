@@ -208,7 +208,7 @@ demo = gr.Interface(
         ),
     ],
     outputs="text",
-    title="Multilingual Sentiment Analysis",
+    title="Sentiment Analyzer",
     description="🔍 Paste any text (including tweet content) OR a Reddit post URL to analyze sentiment.\n\n💡 Tweet URLs are not supported directly due to platform restrictions. Please paste tweet content manually."
 )
 
