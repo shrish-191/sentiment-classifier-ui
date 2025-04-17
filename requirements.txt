@@ -4,3 +4,4 @@ tf-keras
 gradio
 snscrape
 praw
+torch
