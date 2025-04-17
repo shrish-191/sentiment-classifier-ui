@@ -220,12 +220,12 @@ import tensorflow as tf
 import praw
 import os
 
-# Fallback imports
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from scipy.special import softmax
 
-# Load main model and tokenizer
+
 model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
 tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
 
@@ -235,7 +235,7 @@ LABELS = {
     2: "Negative"
 }
 
-# Load fallback model and tokenizer
+
 fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
 fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
 fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
@@ -254,7 +254,7 @@ def fetch_reddit_text(reddit_url):
     except Exception as e:
         return f"Error fetching Reddit post: {str(e)}"
 
-# Fallback classifier using RoBERTa
+
 def fallback_classifier(text):
     encoded_input = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
     with torch.no_grad():
