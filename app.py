@@ -215,33 +215,38 @@ demo = gr.Interface(
 demo.launch()
 '''
 import gradio as gr
-from transformers import TFBertForSequenceClassification, BertTokenizer, pipeline
+from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
 import praw
 import os
 
-# Load main BERT model and tokenizer
+# Fallback imports
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+from scipy.special import softmax
+
+# Load main model and tokenizer
 model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
 tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
 
-# Load fallback sentiment pipeline model
-fallback_classifier = pipeline("text-classification", model="VinMir/GordonAI-sentiment_analysis")
-
-# Label mapping for main model
 LABELS = {
     0: "Neutral",
     1: "Positive",
     2: "Negative"
 }
 
-# Reddit API setup (secure credentials from Hugging Face secrets)
+# Load fallback model and tokenizer
+fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
+fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
+fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
+
+# Reddit API
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
     user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-script")
 )
 
-# Fetch content from Reddit URL
 def fetch_reddit_text(reddit_url):
     try:
         submission = reddit.submission(url=reddit_url)
@@ -249,7 +254,15 @@ def fetch_reddit_text(reddit_url):
     except Exception as e:
         return f"Error fetching Reddit post: {str(e)}"
 
-# Sentiment classification function
+# Fallback classifier using RoBERTa
+def fallback_classifier(text):
+    encoded_input = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
+    with torch.no_grad():
+        output = fallback_model(**encoded_input)
+    scores = softmax(output.logits.numpy()[0])
+    labels = ['Negative', 'Neutral', 'Positive']
+    return f"Prediction: {labels[scores.argmax()]}"
+
 def classify_sentiment(text_input, reddit_url):
     if reddit_url.strip():
         text = fetch_reddit_text(reddit_url)
@@ -262,7 +275,6 @@ def classify_sentiment(text_input, reddit_url):
         return f"[!] {text}"
 
     try:
-        # Main BERT model prediction
         inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
         outputs = model(inputs)
         probs = tf.nn.softmax(outputs.logits, axis=1)
@@ -270,9 +282,7 @@ def classify_sentiment(text_input, reddit_url):
         pred_label = tf.argmax(probs, axis=1).numpy()[0]
 
         if confidence < 0.5:
-            # Use fallback model silently
-            fallback = fallback_classifier(text)[0]['label']
-            return f"Prediction: {fallback}"
+            return fallback_classifier(text)
 
         return f"Prediction: {LABELS[pred_label]}"
     except Exception as e:
@@ -299,5 +309,8 @@ demo = gr.Interface(
 )
 
 demo.launch()
+
+
+
 
 
