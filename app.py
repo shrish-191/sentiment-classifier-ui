@@ -244,7 +244,7 @@ fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_mod
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-    user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-script")
+    user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-ui")
 )
 
 def fetch_reddit_text(reddit_url):
