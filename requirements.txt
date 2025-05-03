@@ -5,3 +5,6 @@ gradio
 snscrape
 praw
 torch
+pytesseract
+opencv-python
+Pillo
