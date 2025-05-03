@@ -237,6 +237,7 @@ demo = gr.Interface(
 
 demo.launch()
 '''
+
 import gradio as gr
 from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
@@ -246,6 +247,7 @@ import pytesseract
 from PIL import Image
 import cv2
 import numpy as np
+import re
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
@@ -291,14 +293,22 @@ def fallback_classifier(text):
     labels = ['Negative', 'Neutral', 'Positive']
     return f"Prediction: {labels[scores.argmax()]}"
 
+def clean_ocr_text(text):
+    text = text.strip()
+    text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces and newlines
+    text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
+    return text
+
 def classify_sentiment(text_input, reddit_url, image):
-    # Priority: Reddit > Image > Textbox
     if reddit_url.strip():
         text = fetch_reddit_text(reddit_url)
     elif image is not None:
         try:
             img_array = np.array(image)
-            text = pytesseract.image_to_string(img_array)
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+            text = pytesseract.image_to_string(thresh)
+            text = clean_ocr_text(text)
         except Exception as e:
             return f"[!] OCR failed: {str(e)}"
     elif text_input.strip():
@@ -348,6 +358,7 @@ demo = gr.Interface(
 )
 
 demo.launch()
+
 
 
 
