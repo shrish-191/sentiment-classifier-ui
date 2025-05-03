@@ -359,155 +359,71 @@ demo = gr.Interface(
 
 demo.launch()
 '''
+
 import gradio as gr
-from transformers import TFBertForSequenceClassification, BertTokenizer
-import tensorflow as tf
 import praw
-import os
-import pytesseract
-from PIL import Image
-import numpy as np
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
-from scipy.special import softmax
+import pandas as pd
 import plotly.graph_objs as go
+from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
+from tensorflow.nn import softmax
+import numpy as np
 
-# Install tesseract OCR (only runs once in Hugging Face Spaces)
-os.system("apt-get update && apt-get install -y tesseract-ocr")
+# Load model and tokenizer
+model_name = "shrish191/sentiment-bert"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = TFAutoModelForSequenceClassification.from_pretrained(model_name)
 
-# Load main model
-model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
-tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
-
-LABELS = {
-    0: "Neutral",
-    1: "Positive",
-    2: "Negative"
-}
-
-# Load fallback model
-fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
-fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
-fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
-
-# Reddit API setup
-reddit = praw.Reddit(
-    client_id=os.getenv("REDDIT_CLIENT_ID"),
-    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-    user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-ui")
-)
-
-def fetch_reddit_text(reddit_url):
-    try:
-        submission = reddit.submission(url=reddit_url)
-        return f"{submission.title}\n\n{submission.selftext}"
-    except Exception as e:
-        return f"Error fetching Reddit post: {str(e)}"
-
-def fetch_subreddit_texts(subreddit_name, limit=15):
-    texts = []
-    try:
-        subreddit = reddit.subreddit(subreddit_name)
-        for submission in subreddit.hot(limit=limit):
-            combined = f"{submission.title} {submission.selftext}".strip()
-            if combined:
-                texts.append(combined)
-        return texts
-    except Exception as e:
-        return [f"Error fetching subreddit: {str(e)}"]
-
-def fallback_classifier(text):
-    encoded_input = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
-    with torch.no_grad():
-        output = fallback_model(**encoded_input)
-    scores = softmax(output.logits.numpy()[0])
+def classify_sentiment(text):
+    inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True)
+    outputs = model(inputs)
+    scores = softmax(outputs.logits, axis=1).numpy()[0]
     labels = ['Negative', 'Neutral', 'Positive']
-    return f"Prediction: {labels[scores.argmax()]}"
+    sentiment = labels[np.argmax(scores)]
+    confidence = round(float(np.max(scores)) * 100, 2)
+    return sentiment, confidence
 
-def classify_multiple_sentiments(texts):
-    counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
-    for text in texts:
-        try:
-            inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
-            outputs = model(inputs)
-            probs = tf.nn.softmax(outputs.logits, axis=1)
-            confidence = float(tf.reduce_max(probs).numpy())
-            pred_label = tf.argmax(probs, axis=1).numpy()[0]
-
-            if confidence < 0.5:
-                label = fallback_classifier(text).split(":")[-1].strip()
-            else:
-                label = LABELS[pred_label]
-
-            counts[label] += 1
-        except:
-            continue
-    return counts
-
-def sentiment_pie_chart(counts):
-    labels = list(counts.keys())
-    values = list(counts.values())
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
-    fig.update_layout(title_text="Sentiment Distribution in Subreddit")
-    return fig
-
-def classify_sentiment(text_input, reddit_url, image, subreddit_name):
-    # Subreddit Dashboard has priority
-    if subreddit_name.strip():
-        texts = fetch_subreddit_texts(subreddit_name)
-        if "Error" in texts[0]:
-            return texts[0]
-        counts = classify_multiple_sentiments(texts)
-        return sentiment_pie_chart(counts)
-
-    if reddit_url.strip():
-        text = fetch_reddit_text(reddit_url)
-    elif image is not None:
-        try:
-            img_array = np.array(image)
-            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-            text = pytesseract.image_to_string(thresh)
-        except Exception as e:
-            return f"[!] OCR failed: {str(e)}"
-    elif text_input.strip():
-        text = text_input
-    else:
-        return "[!] Please enter some text, upload an image, or provide a Reddit URL."
-
-    if text.lower().startswith("error") or "Unable to extract" in text:
-        return f"[!] {text}"
-
-    try:
-        inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
-        outputs = model(inputs)
-        probs = tf.nn.softmax(outputs.logits, axis=1)
-        confidence = float(tf.reduce_max(probs).numpy())
-        pred_label = tf.argmax(probs, axis=1).numpy()[0]
-
-        if confidence < 0.5:
-            return fallback_classifier(text)
-
-        return f"Prediction: {LABELS[pred_label]}"
-    except Exception as e:
-        return f"[!] Prediction error: {str(e)}"
-
-# Gradio interface
-demo = gr.Interface(
-    fn=classify_sentiment,
-    inputs=[
-        gr.Textbox(label="Text Input (can be tweet or any content)", placeholder="Paste tweet or type any content here...", lines=4),
-        gr.Textbox(label="Reddit Post URL", placeholder="Paste a Reddit post URL (optional)", lines=1),
-        gr.Image(label="Upload Image (optional)", type="pil"),
-        gr.Textbox(label="Subreddit Name", placeholder="e.g. AskReddit (optional)", lines=1),
-    ],
-    outputs=gr.outputs.Component(label="Result"),
-    title="Sentiment Analyzer with Dashboard",
-    description="\ud83d\udd0d Paste any text, Reddit post URL, upload an image, or enter a subreddit name to analyze sentiment."
+# Reddit sentiment dashboard
+reddit = praw.Reddit(
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+    user_agent="YOUR_USER_AGENT"
 )
 
-demo.launch()
+def analyze_subreddit(subreddit_name, num_posts):
+    posts = []
+    for submission in reddit.subreddit(subreddit_name).hot(limit=num_posts):
+        if not submission.stickied:
+            sentiment, confidence = classify_sentiment(submission.title)
+            posts.append({"title": submission.title, "sentiment": sentiment, "confidence": confidence})
 
+    df = pd.DataFrame(posts)
+    sentiment_counts = df['sentiment'].value_counts().reindex(['Positive', 'Neutral', 'Negative'], fill_value=0)
+    total = sentiment_counts.sum()
+    sentiment_percentages = (sentiment_counts / total * 100).round(2)
+
+    fig = go.Figure(data=[
+        go.Pie(labels=sentiment_percentages.index, values=sentiment_percentages.values, hole=.4)
+    ])
+    fig.update_layout(title="Sentiment Distribution in r/{} ({} posts)".format(subreddit_name, num_posts))
+
+    return df, fig
+
+with gr.Blocks() as demo:
+    gr.Markdown("## Reddit Subreddit Sentiment Dashboard")
+    subreddit_input = gr.Textbox(label="Enter Subreddit (without r/)", placeholder="e.g., technology")
+    num_posts_input = gr.Slider(10, 100, step=10, value=30, label="Number of Posts to Analyze")
+    analyze_button = gr.Button("Analyze")
+    sentiment_table = gr.Dataframe(label="Post Sentiments")
+    sentiment_chart = gr.Plot(label="Sentiment Pie Chart")
+
+    analyze_button.click(
+        analyze_subreddit,
+        inputs=[subreddit_input, num_posts_input],
+        outputs=[sentiment_table, sentiment_chart]
+    )
+
+if __name__ == "__main__":
+    demo.launch()
 
 
 
