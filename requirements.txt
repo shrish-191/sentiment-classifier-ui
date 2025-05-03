@@ -7,4 +7,4 @@ praw
 torch
 pytesseract
 opencv-python
-Pillo
+Pillow
