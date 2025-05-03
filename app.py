@@ -237,7 +237,7 @@ demo = gr.Interface(
 
 demo.launch()
 '''
-'''
+
 import gradio as gr
 from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
@@ -358,136 +358,12 @@ demo = gr.Interface(
 )
 
 demo.launch()
-'''
 
-import gradio as gr
-from transformers import TFAutoModelForSequenceClassification, AutoTokenizer
-import tensorflow as tf
-import numpy as np
-import praw
-import re
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-from collections import Counter
-import plotly.graph_objects as go
-import os
+  
 
-# Load pre-trained model and tokenizer
-model = TFAutoModelForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
-tokenizer = AutoTokenizer.from_pretrained("shrish191/sentiment-bert")
 
-label_map = {0: 'Negative', 1: 'Neutral', 2: 'Positive'}
 
-# Sentiment Prediction Function
-def predict_sentiment(text):
-    inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
-    outputs = model(inputs)[0]
-    probs = tf.nn.softmax(outputs, axis=1).numpy()
-    pred_label = np.argmax(probs, axis=1)[0]
-    return label_map[pred_label]
 
-# Reddit URL Handling
-def analyze_reddit_url(url):
-    reddit = praw.Reddit(
-        client_id="YOUR_CLIENT_ID",
-        client_secret="YOUR_CLIENT_SECRET",
-        user_agent="YOUR_USER_AGENT"
-    )
-    try:
-        submission = reddit.submission(url=url)
-        submission.comments.replace_more(limit=0)
-        comments = [comment.body for comment in submission.comments.list() if len(comment.body) > 10][:100]
-        sentiments = [predict_sentiment(comment) for comment in comments]
-        sentiment_counts = Counter(sentiments)
-        result_text = "\n".join([f"{s}: {c}" for s, c in sentiment_counts.items()])
-
-        # Pie chart
-        fig = go.Figure(data=[go.Pie(labels=list(sentiment_counts.keys()),
-                                     values=list(sentiment_counts.values()),
-                                     hole=0.3)])
-        fig.update_layout(title="Sentiment Distribution of Reddit Comments")
-        return result_text, fig
-    except Exception as e:
-        return str(e), None
-
-# Subreddit Analysis Function
-def analyze_subreddit(subreddit_name):
-    reddit = praw.Reddit(
-        client_id="YOUR_CLIENT_ID",
-        client_secret="YOUR_CLIENT_SECRET",
-        user_agent="YOUR_USER_AGENT"
-    )
-    try:
-        subreddit = reddit.subreddit(subreddit_name)
-        posts = list(subreddit.hot(limit=100))
-        texts = [post.title + " " + post.selftext for post in posts if post.selftext or post.title]
-
-        if not texts:
-            return "No valid text data found in subreddit.", None
-
-        sentiments = [predict_sentiment(text) for text in texts]
-        sentiment_counts = Counter(sentiments)
-        result_text = "\n".join([f"{s}: {c}" for s, c in sentiment_counts.items()])
-
-        # Pie chart
-        fig = go.Figure(data=[go.Pie(labels=list(sentiment_counts.keys()),
-                                     values=list(sentiment_counts.values()),
-                                     hole=0.3)])
-        fig.update_layout(title=f"Sentiment Distribution in r/{subreddit_name}")
-
-        return result_text, fig
-    except Exception as e:
-        return str(e), None
-
-# Image Upload Functionality
-from PIL import Image
-import pytesseract
-
-def extract_text_from_image(image):
-    try:
-        img = Image.open(image)
-        text = pytesseract.image_to_string(img)
-        return text
-    except Exception as e:
-        return f"Error extracting text: {e}"
-
-def analyze_image_sentiment(image):
-    extracted_text = extract_text_from_image(image)
-    if extracted_text:
-        sentiment = predict_sentiment(extracted_text)
-        return f"Extracted Text: {extracted_text}\n\nPredicted Sentiment: {sentiment}"
-    return "No text extracted."
-
-# Gradio Interface
-with gr.Blocks() as demo:
-    gr.Markdown("## 🧠 Sentiment Analysis App")
-    with gr.Tab("Analyze Text"):
-        input_text = gr.Textbox(label="Enter text")
-        output_text = gr.Textbox(label="Predicted Sentiment")
-        analyze_btn = gr.Button("Analyze")
-        analyze_btn.click(fn=predict_sentiment, inputs=input_text, outputs=output_text)
-
-    with gr.Tab("Analyze Reddit URL"):
-        reddit_url = gr.Textbox(label="Enter Reddit post URL")
-        url_result = gr.Textbox(label="Sentiment Counts")
-        url_plot = gr.Plot(label="Pie Chart")
-        analyze_url_btn = gr.Button("Analyze Reddit Comments")
-        analyze_url_btn.click(fn=analyze_reddit_url, inputs=reddit_url, outputs=[url_result, url_plot])
-
-    with gr.Tab("Analyze Image"):
-        image_input = gr.Image(label="Upload an image")
-        image_result = gr.Textbox(label="Sentiment from Image Text")
-        analyze_img_btn = gr.Button("Analyze Image")
-        analyze_img_btn.click(fn=analyze_image_sentiment, inputs=image_input, outputs=image_result)
-
-    with gr.Tab("Analyze Subreddit"):
-        subreddit_input = gr.Textbox(label="Enter subreddit name (without r/)")
-        subreddit_result = gr.Textbox(label="Sentiment Counts")
-        subreddit_plot = gr.Plot(label="Pie Chart")
-        analyze_subreddit_btn = gr.Button("Analyze Subreddit")
-        analyze_subreddit_btn.click(fn=analyze_subreddit, inputs=subreddit_input, outputs=[subreddit_result, subreddit_plot])
-
-demo.launch()
 
 
 
