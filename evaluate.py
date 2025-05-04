@@ -1,3 +1,20 @@
+import gradio as gr
+from transformers import TFBertForSequenceClassification, BertTokenizer
+import tensorflow as tf
+import praw
+import os
+import pytesseract
+from PIL import Image
+import cv2
+import numpy as np
+import re
+
+from evaluate import get_classification_report
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+from scipy.special import softmax
+import matplotlib.pyplot as plt
+import pandas as pd
 def get_classification_report():
     from sklearn.metrics import classification_report
     import pandas as pd
