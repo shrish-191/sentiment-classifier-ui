@@ -359,6 +359,7 @@ demo = gr.Interface(
 
 demo.launch()
 '''
+'''
 import gradio as gr
 from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
@@ -533,7 +534,122 @@ demo = gr.TabbedInterface(
 )
 
 demo.launch()
+'''
+import gradio as gr
+from transformers import TFBertForSequenceClassification, BertTokenizer
+import tensorflow as tf
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+import numpy as np
 
+# Load models
+model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
+tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
+LABELS = {0: "Neutral", 1: "Positive", 2: "Negative"}
+
+# Load fallback model
+fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
+fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
+fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
+
+def analyze_text(text, true_label=None):
+    try:
+        # Main model prediction
+        inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
+        outputs = model(inputs)
+        probs = tf.nn.softmax(outputs.logits, axis=1)
+        main_pred = LABELS[tf.argmax(probs, axis=1).numpy()[0]]
+        
+        # Fallback model prediction
+        fallback_inputs = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
+        with torch.no_grad():
+            fallback_outputs = fallback_model(**fallback_inputs)
+        fallback_scores = softmax(fallback_outputs.logits.numpy()[0])
+        fallback_pred = ['Negative', 'Neutral', 'Positive'][np.argmax(fallback_scores)]
+
+        # Initialize results
+        result = f"""Main Model Prediction: {main_pred}
+Fallback Model Prediction: {fallback_pred}"""
+
+        # Calculate metrics if true label provided
+        if true_label:
+            # Convert labels to numerical format
+            label_map = {v: k for k, v in LABELS.items()}
+            y_true = [label_map[true_label]]
+            
+            # Main model metrics
+            y_pred_main = [label_map[main_pred]]
+            main_acc = accuracy_score(y_true, y_pred_main)
+            main_f1 = f1_score(y_true, y_pred_main, average='weighted')
+            
+            # Fallback model metrics
+            fallback_label_map = {'Negative': 2, 'Neutral': 0, 'Positive': 1}
+            y_pred_fallback = [fallback_label_map[fallback_pred]]
+            fallback_acc = accuracy_score(y_true, y_pred_fallback)
+            fallback_f1 = f1_score(y_true, y_pred_fallback, average='weighted')
+
+            # Classification report
+            report = classification_report(
+                y_true, y_pred_main,
+                target_names=LABELS.values(),
+                output_dict=True
+            )
+
+            # Format metrics
+            metrics = f"""
+\n\nPERFORMANCE METRICS (Single Sample):
+------------------------------------
+Main Model:
+Accuracy: {main_acc:.4f}
+F1 Score: {main_f1:.4f}
+
+Fallback Model:
+Accuracy: {fallback_acc:.4f}
+F1 Score: {fallback_f1:.4f}
+
+Classification Report:
+{classification_report(y_true, y_pred_main, target_names=LABELS.values())}
+"""
+
+            result += metrics
+
+        return result
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# Gradio interface
+demo = gr.Interface(
+    fn=analyze_text,
+    inputs=[
+        gr.Textbox(
+            label="Input Text",
+            placeholder="Enter text to analyze...",
+            lines=4
+        ),
+        gr.Dropdown(
+            label="True Label (optional, for metrics)",
+            choices=list(LABELS.values()),
+            value=None
+        )
+    ],
+    outputs=gr.Textbox(
+        label="Analysis Results",
+        lines=10
+    ),
+    title="Sentiment Analysis with Performance Metrics",
+    description="""Enter text and optionally select true label to generate:
+    - Predictions from both models
+    - Accuracy scores
+    - F1 scores
+    - Classification report""",
+    examples=[
+        ["I absolutely love this new feature!", "Positive"],
+        ["This is the worst experience ever!", "Negative"],
+        ["The product seems okay, nothing special.", "Neutral"]
+    ]
+)
+
+demo.launch()
   
 
 
