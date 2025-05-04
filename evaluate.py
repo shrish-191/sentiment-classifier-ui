@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import re
 
-from evaluate import get_classification_report
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from scipy.special import softmax
