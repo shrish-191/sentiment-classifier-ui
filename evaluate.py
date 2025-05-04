@@ -11,8 +11,8 @@ def get_classification_report():
     #tokenizer = AutoTokenizer.from_pretrained("Shrish/mbert-sentiment")
     #model = TFAutoModelForSequenceClassification.from_pretrained("Shrish/mbert-sentiment")
     fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
-    fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
-    fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
+    tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
 
     # Tokenize and predict
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="tf")
