@@ -547,6 +547,7 @@ import cv2
 import numpy as np
 import re
 
+from evaluate import get_classification_report
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from scipy.special import softmax
@@ -701,11 +702,24 @@ subreddit_interface = gr.Interface(
     title="Subreddit Sentiment Analysis",
     description="📊 Enter a subreddit to analyze sentiment of its top 20 hot posts."
 )
+eval_interface = gr.Interface(
+    fn=lambda: get_classification_report(),
+    inputs=[],
+    outputs="text",
+    title="Evaluate Model",
+    description="Run evaluation on test.csv and view classification report."
+)
+
 
 # Combine tabs
-demo = gr.TabbedInterface(
+'''demo = gr.TabbedInterface(
     interface_list=[main_interface, subreddit_interface],
     tab_names=["General Sentiment Analysis", "Subreddit Analysis"]
+)
+'''
+demo = gr.TabbedInterface(
+    interface_list=[main_interface, subreddit_interface, eval_interface],
+    tab_names=["General Sentiment Analysis", "Subreddit Analysis", "Evaluate Model"]
 )
 
 demo.launch()
