@@ -1,11 +1,17 @@
 text,label
-"I love this product",2
-"This is bad",0
-"I'm feeling okay about this",1
-"Absolutely terrible experience",0
-"Such a wonderful time!",2
-"Not what I expected",0
-"It was decent overall",1
-"Amazing work!",2
-"Very disappointing",0
-"Could have been better",1
+"This is the worst experience I've ever had.",0
+"I hate this so much.",0
+"Completely dissatisfied with the product.",0
+"The service was terrible and slow.",0
+"I'm not happy with this purchase.",0
+"It's okay, nothing special.",1
+"The movie was average, not too bad.",1
+"It's just fine, neither good nor bad.",1
+"The product is decent for the price.",1
+"I feel indifferent about it.",1
+"I absolutely love it!",2
+"This is the best thing I've bought all year.",2
+"Fantastic quality and great value.",2
+"I'm super happy with the result!",2
+"Exceeded my expectations.",2
+
