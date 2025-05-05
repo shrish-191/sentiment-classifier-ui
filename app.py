@@ -359,7 +359,7 @@ demo = gr.Interface(
 
 demo.launch()
 '''
-'''
+
 import gradio as gr
 from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
@@ -534,195 +534,16 @@ demo = gr.TabbedInterface(
 )
 
 demo.launch()
-'''
-
-import gradio as gr
-from transformers import TFBertForSequenceClassification, BertTokenizer
-import tensorflow as tf
-import praw
-import os
-import pytesseract
-from PIL import Image
-import cv2
-import numpy as np
-import re
-
-from evaluate import get_classification_report
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
-from scipy.special import softmax
-import matplotlib.pyplot as plt
-import pandas as pd
-
-# Install tesseract OCR (only runs once in Hugging Face Spaces)
-os.system("apt-get update && apt-get install -y tesseract-ocr")
-
-# Load main model
-model = TFBertForSequenceClassification.from_pretrained("shrish191/sentiment-bert")
-tokenizer = BertTokenizer.from_pretrained("shrish191/sentiment-bert")
-
-LABELS = {0: "Neutral", 1: "Positive", 2: "Negative"}
-
-# Load fallback model
-fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
-fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
-fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name)
-
-# Reddit API setup
-reddit = praw.Reddit(
-    client_id=os.getenv("REDDIT_CLIENT_ID"),
-    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-    user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-ui")
-)
-
-def fetch_reddit_text(reddit_url):
-    try:
-        submission = reddit.submission(url=reddit_url)
-        return f"{submission.title}\n\n{submission.selftext}"
-    except Exception as e:
-        return f"Error fetching Reddit post: {str(e)}"
-
-def fallback_classifier(text):
-    encoded_input = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
-    with torch.no_grad():
-        output = fallback_model(**encoded_input)
-    scores = softmax(output.logits.numpy()[0])
-    labels = ['Negative', 'Neutral', 'Positive']
-    return f"Prediction: {labels[scores.argmax()]}"
-
-def clean_ocr_text(text):
-    text = text.strip()
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^\x00-\x7F]+', '', text)
-    return text
-
-def classify_sentiment(text_input, reddit_url, image):
-    if reddit_url.strip():
-        text = fetch_reddit_text(reddit_url)
-    elif image is not None:
-        try:
-            img_array = np.array(image)
-            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-            _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-            text = pytesseract.image_to_string(thresh)
-            text = clean_ocr_text(text)
-        except Exception as e:
-            return f"[!] OCR failed: {str(e)}"
-    elif text_input.strip():
-        text = text_input
-    else:
-        return "[!] Please enter some text, upload an image, or provide a Reddit URL."
-
-    if text.lower().startswith("error") or "Unable to extract" in text:
-        return f"[!] {text}"
-
-    try:
-        inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
-        outputs = model(inputs)
-        probs = tf.nn.softmax(outputs.logits, axis=1)
-        confidence = float(tf.reduce_max(probs).numpy())
-        pred_label = tf.argmax(probs, axis=1).numpy()[0]
-
-        if confidence < 0.5:
-            return fallback_classifier(text)
-
-        return f"Prediction: {LABELS[pred_label]}"
-    except Exception as e:
-        return f"[!] Prediction error: {str(e)}"
-
-def analyze_subreddit(subreddit_name):
-    try:
-        subreddit = reddit.subreddit(subreddit_name)
-        posts = list(subreddit.hot(limit=20))
-
-        sentiments = []
-        titles = []
-
-        for post in posts:
-            text = f"{post.title}\n{post.selftext}"
-            try:
-                inputs = tokenizer(text, return_tensors="tf", truncation=True, padding=True)
-                outputs = model(inputs)
-                probs = tf.nn.softmax(outputs.logits, axis=1)
-                confidence = float(tf.reduce_max(probs).numpy())
-                pred_label = tf.argmax(probs, axis=1).numpy()[0]
-
-                sentiment = LABELS[pred_label] if confidence >= 0.5 else fallback_classifier(text).split(": ")[-1]
-            except:
-                sentiment = "Error"
-            sentiments.append(sentiment)
-            titles.append(post.title)
-
-        df = pd.DataFrame({"Title": titles, "Sentiment": sentiments})
-        sentiment_counts = df["Sentiment"].value_counts()
-
-        # Plot bar chart
-        fig, ax = plt.subplots()
-        sentiment_counts.plot(kind="bar", color=["red", "green", "gray"], ax=ax)
-        ax.set_title(f"Sentiment Distribution in r/{subreddit_name}")
-        ax.set_xlabel("Sentiment")
-        ax.set_ylabel("Number of Posts")
-
-        return fig, df
-    except Exception as e:
-        return f"[!] Error: {str(e)}", pd.DataFrame()
-
-# Gradio tab 1: Text/Image/Reddit Post Analysis
-main_interface = gr.Interface(
-    fn=classify_sentiment,
-    inputs=[
-        gr.Textbox(
-            label="Text Input (can be tweet or any content)",
-            placeholder="Paste tweet or type any content here...",
-            lines=4
-        ),
-        gr.Textbox(
-            label="Reddit Post URL",
-            placeholder="Paste a Reddit post URL (optional)",
-            lines=1
-        ),
-        gr.Image(
-            label="Upload Image (optional)",
-            type="pil"
-        )
-    ],
-    outputs="text",
-    title="Sentiment Analyzer",
-    description="🔍 Paste any text, Reddit post URL, or upload an image containing text to analyze sentiment.\n\n💡 Tweet URLs are not supported. Please paste tweet content or screenshot instead."
-)
-
-# Gradio tab 2: Subreddit Analysis
-subreddit_interface = gr.Interface(
-    fn=analyze_subreddit,
-    inputs=gr.Textbox(label="Subreddit Name", placeholder="e.g., AskReddit"),
-    outputs=[
-        gr.Plot(label="Sentiment Distribution"),
-        gr.Dataframe(label="Post Titles and Sentiments", wrap=True)
-    ],
-    title="Subreddit Sentiment Analysis",
-    description="📊 Enter a subreddit to analyze sentiment of its top 20 hot posts."
-)
-eval_interface = gr.Interface(
-    fn=lambda: get_classification_report(),
-    inputs=[],
-    outputs="text",
-    title="Evaluate Model",
-    description="Run evaluation on test.csv and view classification report."
-)
 
 
-# Combine tabs
-'''demo = gr.TabbedInterface(
-    interface_list=[main_interface, subreddit_interface],
-    tab_names=["General Sentiment Analysis", "Subreddit Analysis"]
-)
-'''
-demo = gr.TabbedInterface(
-    interface_list=[main_interface, subreddit_interface, eval_interface],
-    tab_names=["General Sentiment Analysis", "Subreddit Analysis", "Evaluate Model"]
-)
 
-demo.launch()
+
+
+
+
+ 
+
+ 
 
   
 
