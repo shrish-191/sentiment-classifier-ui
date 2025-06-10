@@ -717,10 +717,13 @@ tokenizer = AutoTokenizer.from_pretrained(main_model_name)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
-# Load fallback multilingual model
-multi_model_name = "nlptown/bert-base-multilingual-uncased-sentiment"
+# Load fallback multilingual model (direct sentiment labels)
+multi_model_name = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 multi_tokenizer = AutoTokenizer.from_pretrained(multi_model_name)
 multi_model = AutoModelForSequenceClassification.from_pretrained(multi_model_name).to(device)
+
+# Labels for multilingual model
+multi_labels = ['Negative', 'Neutral', 'Positive']
 
 # Reddit API setup
 reddit = praw.Reddit(
@@ -741,14 +744,7 @@ def multilingual_classifier(text):
     with torch.no_grad():
         output = multi_model(**encoded_input)
     scores = softmax(output.logits.cpu().numpy()[0])
-    stars = np.argmax(scores) + 1
-
-    if stars in [1, 2]:
-        return "Prediction: Negative"
-    elif stars == 3:
-        return "Prediction: Neutral"
-    else:
-        return "Prediction: Positive"
+    return f"Prediction: {multi_labels[np.argmax(scores)]}"
 
 def clean_ocr_text(text):
     text = text.strip()
@@ -862,6 +858,13 @@ demo = gr.TabbedInterface(
 )
 
 demo.launch()
+
+
+
+
+
+ 
+
 
 
 
