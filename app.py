@@ -548,6 +548,8 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 import pandas as pd
+# Install tesseract OCR (only runs once in Hugging Face Spaces)
+os.system("apt-get update && apt-get install -y tesseract-ocr")
 
 # Load main lightweight model (PyTorch based)
 main_model_name = "distilbert-base-uncased-finetuned-sst-2-english"
@@ -560,6 +562,7 @@ model.to(device)
 fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
 fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
 fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name).to(device)
+
 
 # Reddit API setup
 reddit = praw.Reddit(
