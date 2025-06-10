@@ -12,3 +12,4 @@ plotly
 WordCloud
 scikit-learn
 langdetect
+sentencepiece
