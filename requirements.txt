@@ -11,3 +11,4 @@ Pillow
 plotly
 WordCloud
 scikit-learn
+langdetect
