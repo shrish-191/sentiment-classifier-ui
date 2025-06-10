@@ -359,7 +359,7 @@ demo = gr.Interface(
 
 demo.launch()
 '''
-
+'''
 import gradio as gr
 from transformers import TFBertForSequenceClassification, BertTokenizer
 import tensorflow as tf
@@ -534,7 +534,159 @@ demo = gr.TabbedInterface(
 )
 
 demo.launch()
+'''
+import gradio as gr
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch
+from scipy.special import softmax
+import praw
+import os
+import pytesseract
+from PIL import Image
+import cv2
+import numpy as np
+import re
+import matplotlib.pyplot as plt
+import pandas as pd
 
+# Load main lightweight model (PyTorch based)
+main_model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+model = AutoModelForSequenceClassification.from_pretrained(main_model_name)
+tokenizer = AutoTokenizer.from_pretrained(main_model_name)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+# Load fallback model
+fallback_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
+fallback_tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
+fallback_model = AutoModelForSequenceClassification.from_pretrained(fallback_model_name).to(device)
+
+# Reddit API setup
+reddit = praw.Reddit(
+    client_id=os.getenv("REDDIT_CLIENT_ID"),
+    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+    user_agent=os.getenv("REDDIT_USER_AGENT", "sentiment-classifier-ui-finalyear2025-shrish191")
+)
+
+def fetch_reddit_text(reddit_url):
+    try:
+        submission = reddit.submission(url=reddit_url)
+        return f"{submission.title}\n\n{submission.selftext}"
+    except Exception as e:
+        return f"Error fetching Reddit post: {str(e)}"
+
+def fallback_classifier(text):
+    encoded_input = fallback_tokenizer(text, return_tensors='pt', truncation=True, padding=True).to(device)
+    with torch.no_grad():
+        output = fallback_model(**encoded_input)
+    scores = softmax(output.logits.cpu().numpy()[0])
+    labels = ['Negative', 'Neutral', 'Positive']
+    return f"Prediction: {labels[scores.argmax()]}"
+
+def clean_ocr_text(text):
+    text = text.strip()
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'[^\x00-\x7F]+', '', text)
+    return text
+
+def classify_sentiment(text_input, reddit_url, image):
+    if reddit_url.strip():
+        text = fetch_reddit_text(reddit_url)
+    elif image is not None:
+        try:
+            img_array = np.array(image)
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+            text = pytesseract.image_to_string(thresh)
+            text = clean_ocr_text(text)
+        except Exception as e:
+            return f"[!] OCR failed: {str(e)}"
+    elif text_input.strip():
+        text = text_input
+    else:
+        return "[!] Please enter some text, upload an image, or provide a Reddit URL."
+
+    if text.lower().startswith("error") or "Unable to extract" in text:
+        return f"[!] {text}"
+
+    # Truncate to first 400 words
+    text = ' '.join(text.split()[:400])
+
+    try:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            scores = softmax(outputs.logits.cpu().numpy()[0])
+        labels = ['Negative', 'Positive']
+        return f"Prediction: {labels[scores.argmax()]}"
+    except Exception as e:
+        return f"[!] Prediction error: {str(e)}"
+
+def analyze_subreddit(subreddit_name):
+    try:
+        subreddit = reddit.subreddit(subreddit_name)
+        posts = list(subreddit.hot(limit=20))
+
+        sentiments = []
+        titles = []
+
+        for post in posts:
+            text = f"{post.title}\n{post.selftext}"
+            text = ' '.join(text.split()[:400])
+            try:
+                inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
+                with torch.no_grad():
+                    outputs = model(**inputs)
+                    scores = softmax(outputs.logits.cpu().numpy()[0])
+                labels = ['Negative', 'Positive']
+                sentiment = labels[scores.argmax()]
+            except:
+                sentiment = "Fallback"
+            sentiments.append(sentiment)
+            titles.append(post.title)
+
+        df = pd.DataFrame({"Title": titles, "Sentiment": sentiments})
+        sentiment_counts = df["Sentiment"].value_counts()
+
+        fig, ax = plt.subplots()
+        sentiment_counts.plot(kind="bar", ax=ax)
+        ax.set_title(f"Sentiment Distribution in r/{subreddit_name}")
+        ax.set_xlabel("Sentiment")
+        ax.set_ylabel("Number of Posts")
+
+        return fig, df
+    except Exception as e:
+        return f"[!] Error: {str(e)}", pd.DataFrame()
+
+main_interface = gr.Interface(
+    fn=classify_sentiment,
+    inputs=[
+        gr.Textbox(label="Text Input", placeholder="Paste content here...", lines=4),
+        gr.Textbox(label="Reddit Post URL", placeholder="Optional", lines=1),
+        gr.Image(label="Upload Image (optional)", type="pil")
+    ],
+    outputs="text",
+    title="Sentiment Analyzer",
+    description="🔍 Analyze sentiment of any text, Reddit post URL, or image content."
+)
+
+subreddit_interface = gr.Interface(
+    fn=analyze_subreddit,
+    inputs=gr.Textbox(label="Subreddit Name", placeholder="e.g., AskReddit"),
+    outputs=[
+        gr.Plot(label="Sentiment Distribution"),
+        gr.Dataframe(label="Post Titles and Sentiments", wrap=True)
+    ],
+    title="Subreddit Sentiment Analysis",
+    description="📊 Analyze top 20 posts of any subreddit."
+)
+
+demo = gr.TabbedInterface(
+    interface_list=[main_interface, subreddit_interface],
+    tab_names=["General Sentiment Analysis", "Subreddit Analysis"]
+)
+
+demo.launch()
 
 
 
