@@ -3,8 +3,8 @@ A real-time BERT-powered sentiment analysis system that classifies social media 
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
-![Model-1](https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english-yellowgreen)
-![Model-2](https://huggingface.co/shrish191/sentiment-bert)
+![Model](https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english-yellowgreen)
+
 ---
 
 ## 🚀 Live Demo
