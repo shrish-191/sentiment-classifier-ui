@@ -3,8 +3,8 @@ A real-time BERT-powered sentiment analysis system that classifies social media 
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
-![Model](https://img.shields.io/badge/model-BERT--Base--Uncased-yellowgreen)
-
+![Model-1](https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english-yellowgreen)
+![Model-2](https://huggingface.co/shrish191/sentiment-bert)
 ---
 
 ## 🚀 Live Demo
@@ -17,13 +17,14 @@ A real-time BERT-powered sentiment analysis system that classifies social media 
 ## 📸 Screenshots
 
 ### 🔹 Text & Reddit Sentiment Analysis  
-![Text input demo](screenshots/text_input.png)
+![Text input demo](generalsentimentanalysis.png)
+![Text input demo](redditposturl.png)
 
 ### 🔹 Image Upload with OCR  
-![Image OCR demo](screenshots/image_input.png)
+![Image OCR demo](uploadimage.png)
 
 ### 🔹 Subreddit-Wide Sentiment Insights  
-![Subreddit analysis](screenshots/subreddit_analysis.png)
+![Subreddit analysis](subreddit.png)
 
 ---
 
@@ -52,4 +53,10 @@ A real-time BERT-powered sentiment analysis system that classifies social media 
 ---
 
 ## 📂 Project Structure
-
+📁 sentiment-analyzer/
+├── app.py # Main Gradio app
+├── evaluate.py # Evaluation script for classification report
+├── test.csv # Sample test set for metrics
+├── requirements.txt # Dependencies
+├── screenshots/ # Demo images
+└── README.md # You are here!
