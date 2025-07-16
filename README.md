@@ -3,7 +3,7 @@ A real-time BERT-powered sentiment analysis system that classifies social media 
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
-![Model](https://img.shields.io/badge/model-BERT--Base--Uncased,cardiffnlp/twitter-xlm-roberta-base-sentiment-yellowgreen)
+![Model](https://img.shields.io/badge/model-BERT--Base--Uncased-yellowgreen)
 
 ---
 
